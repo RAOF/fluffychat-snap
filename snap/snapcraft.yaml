@@ -47,54 +47,32 @@ architectures:
   - build-on: arm64
 
 parts:
-  olm:
-    plugin: cmake
-    source: https://gitlab.matrix.org/matrix-org/olm.git
-    source-type: git
-    source-tag: '3.2.9'
-    build-packages:
-      - g++
-
-  flutter-git:
-    source: https://github.com/flutter/flutter.git
-    source-branch: stable
-    plugin: nil
-    override-build: |
-      set -eux
-      mkdir -p $CRAFT_PART_INSTALL/usr/bin
-      mkdir -p $CRAFT_PART_INSTALL/usr/libexec
-      cp -r $CRAFT_PART_SRC $CRAFT_PART_INSTALL/usr/libexec/flutter
-      ln -sf $CRAFT_PART_INSTALL/usr/libexec/flutter/bin/flutter $CRAFT_PART_INSTALL/usr/bin/flutter
-      export PATH="$CRAFT_PART_INSTALL/usr/bin:$PATH"
-      flutter doctor
-      flutter channel stable
-      flutter upgrade
-    build-packages:
-      - clang
-      - cmake
-      - curl
-      - ninja-build
-      - unzip
-    override-prime: ''
-
+# Ubuntu 22.04 already has libolm 3.2.10, so we don't need to build it ourselves
+# The original build part is left here, in case we need to bump libolm version later.
+#  olm:
+#    plugin: cmake
+#    configflags:
+#      - -DCMAKE_INSTALL_PREFIX=/usr
+#    source: https://gitlab.matrix.org/matrix-org/olm.git
+#    source-type: git
+#    source-tag: 3.2.9
+#    build-packages:
+#      - g++
   fluffychat:
-    plugin: nil
+    plugin: flutter
     source: https://gitlab.com/famedly/fluffychat.git
-    after: [flutter-git]
+    flutter-target: lib/main.dart
     override-build: |
-      set -eux
-      flutter pub get || true
-      flutter build linux --release -v
-      snapcraftctl set-version $(git describe --always --tag)
-      mkdir -p $CRAFT_PART_INSTALL/bin
-      cp -r build/linux/*/release/bundle/* $CRAFT_PART_INSTALL/bin/
+      craftctl set version=$(git describe --always --tag)
+      craftctl default
     build-packages:
-      - libsecret-1-dev
       - libjsoncpp-dev
-    stage-packages:
-      - libsecret-1-dev
+      - libolm-dev
+   stage-packages:
       - libjsoncpp-dev
-
+      - libglu1-mesa
+      - freeglut3
+      - libolm-dev
 slots:
   dbus-svc:
     interface: dbus
@@ -103,8 +81,9 @@ slots:
 
 apps:
   fluffychat:
+    extensions:
+      - gnome
     command: bin/fluffychat
-    extensions: [gnome]
     plugs:
       - audio-playback
       - browser-support
